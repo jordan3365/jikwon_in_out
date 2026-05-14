@@ -108,8 +108,10 @@ function getAllData() {
 function addEmployee(data) {
   const sheet = getOrCreateSheet(SHEETS.EMPLOYEES);
   const id = "EMP_" + new Date().getTime();
+  // 작성일자(입사일자)가 있으면 사용하고 없으면 현재 날짜 사용
+  const joinDate = data.joinDate || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd");
   sheet.appendRow([
-    id, data.name, data.birthday, data.phone, new Date(), 
+    id, data.name, data.birthday, data.phone, joinDate, 
     data.type, data.rate, data.bankName, data.bankAccount, data.name, 
     data.workPart, `${data.startTime}~${data.endTime}`, '3.3%'
   ]);

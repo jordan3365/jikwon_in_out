@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4FhxbMZwLqox0sgs-ggxanx6IHjeeH2YAUOL2Kph92haKQjSY0TBHTI4Mw_PzaXiA_w/exec'; 
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyXLZ2Vvv0QQTkKN8DqaYh-cNOyTt0rP53UWKnq-XCvDsBsgkXq0m6yT_SJuKZwuUJMVQ/exec'; 
 
 // State
 let employees = [];
@@ -7,10 +7,18 @@ let attendance = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    initDefaultDate();
     fetchData();
     setupEventListeners();
     initCustomModal();
 });
+
+function initDefaultDate() {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const joinDateInput = document.getElementById('emp-join-date');
+    if (joinDateInput) joinDateInput.value = today;
+}
 
 // ===== 커스텀 모달 알림/확인창 시스템 =====
 function initCustomModal() {
@@ -109,6 +117,7 @@ function setupEventListeners() {
             bankName: document.getElementById('emp-bank-name').value,
             bankAccount: document.getElementById('emp-bank-account').value,
             workPart: document.getElementById('emp-work-part').value,
+            joinDate: document.getElementById('emp-join-date').value,
             startTime: document.getElementById('emp-start-time').value,
             endTime: document.getElementById('emp-end-time').value
         };
@@ -118,10 +127,11 @@ function setupEventListeners() {
             if (res.success) {
                 successModal(editId ? '정보가 수정되었습니다.' : '직원이 등록되었습니다.');
                 form.reset();
+                initDefaultDate();
                 delete form.dataset.editId;
                 submitBtn.innerText = '저장 및 등록';
                 submitBtn.style.background = '';
-                await fetchData();
+                fetchData(); // 비동기로 호출하여 UI 차단 최소화
             } else {
                 errorModal('저장 실패: ' + (res.message || '알 수 없는 오류'));
             }
@@ -470,7 +480,7 @@ function openContractModal(empId) {
     document.getElementById('c-worker-bank-name').innerText = emp.bankName || '';
     document.getElementById('c-worker-bank-number').innerText = emp.bankAccount || '';
     document.getElementById('c-worker-num-name').innerText = emp.name;
-    document.getElementById('c-write-day').innerText = todayStr;
+    document.getElementById('c-write-day').innerText = emp.joinDate ? new Date(emp.joinDate).toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric'}) : todayStr;
     document.getElementById('c-worker-birthday').innerText = emp.birthday || '';
     document.getElementById('c-worker-sig').innerText = emp.name;
 
@@ -536,6 +546,7 @@ function editEmployee(id) {
     document.getElementById('emp-bank-name').value = emp.bankName;
     document.getElementById('emp-bank-account').value = emp.bankAccount;
     document.getElementById('emp-work-part').value = emp.workPart;
+    document.getElementById('emp-join-date').value = emp.joinDate || '';
     document.getElementById('emp-start-time').value = emp.startTime || '09:00';
     document.getElementById('emp-end-time').value = emp.endTime || '18:00';
 

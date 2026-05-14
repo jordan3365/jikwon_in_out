@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4FhxbMZwLqox0sgs-ggxanx6IHjeeH2YAUOL2Kph92haKQjSY0TBHTI4Mw_PzaXiA_w/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyXLZ2Vvv0QQTkKN8DqaYh-cNOyTt0rP53UWKnq-XCvDsBsgkXq0m6yT_SJuKZwuUJMVQ/exec';
 
 // State
 let employees = [];
@@ -9,6 +9,10 @@ let currentAction = ''; // 'in' or 'out'
 document.addEventListener('DOMContentLoaded', () => {
     fetchEmployees();
     initCustomModal();
+    // TTS 목소리 미리 로드 (성능 최적화)
+    if (window.speechSynthesis) {
+        window.speechSynthesis.getVoices();
+    }
 });
 
 // ===== 커스텀 모달 알림/확인창 시스템 =====
@@ -68,7 +72,7 @@ function showAutoCloseModal(icon, title, message) {
     setTimeout(() => {
         closeCustomModal();
         showMainSelector();
-    }, 2500);
+    }, 2000); // 2.5초에서 2초로 단축하여 반응성 향상
 }
 // ==========================================
 
@@ -145,26 +149,27 @@ async function handleClock(empId) {
 function speak(text) {
     if (!window.speechSynthesis) return;
     
-    // 음성이 로드될 때까지 기다리는 헬퍼 함수
-    const getBestVoice = () => {
+    const startSpeak = () => {
+        // 기존 재생 중인 음성 중단
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text);
         const voices = window.speechSynthesis.getVoices();
-        // 1순위: Google 한국어 여성, 2순위: 시스템 한국어 여성, 3순위: 일반 한국어
-        return voices.find(v => v.lang.includes('ko') && v.name.includes('Google')) 
+        
+        // 브라우저별 최적의 한국어 목소리 선택
+        let selectedVoice = voices.find(v => v.lang.includes('ko') && v.name.includes('Google')) 
             || voices.find(v => v.lang.includes('ko') && v.name.toLowerCase().includes('female'))
             || voices.find(v => v.lang.includes('ko'));
-    };
-
-    const startSpeak = () => {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        const premiumVoice = getBestVoice();
-        
-        if (premiumVoice) utterance.voice = premiumVoice;
+            
+        if (selectedVoice) utterance.voice = selectedVoice;
         utterance.lang = 'ko-KR';
-        utterance.rate = 1.0; 
-        utterance.pitch = 1.05; // 부드러운 여성 톤
+        utterance.rate = 1.05; // 약간 빠르게 설정하여 반응성 향상
+        utterance.pitch = 1.0;
         
-        window.speechSynthesis.speak(utterance);
+        // 삼성 브라우저 및 일부 모바일 기기 대응: 약간의 지연 후 실행
+        setTimeout(() => {
+            window.speechSynthesis.speak(utterance);
+        }, 50);
     };
 
     if (window.speechSynthesis.getVoices().length === 0) {
