@@ -1,0 +1,404 @@
+:root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary-color: #0ea5e9;
+    --accent-color: #f43f5e;
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --glass-border: #e2e8f0;
+    --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+}
+
+body {
+    background: var(--bg-main);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Glassmorphism Layout */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 0;
+    margin-bottom: 3rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.025em;
+}
+
+/* Main Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-premium);
+    transition: var(--transition);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.card h3 {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card .value {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+input, select {
+    width: 100%;
+    background: #f1f5f9;
+    border: 1px solid var(--glass-border);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: var(--text-main);
+    outline: none;
+    transition: var(--transition);
+}
+
+input:focus, select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    background: #ffffff;
+}
+
+.btn {
+    width: 100%;
+    padding: 0.875rem;
+    border-radius: 0.75rem;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 1.5rem;
+    margin-top: 2rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    padding: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--glass-border);
+    font-weight: 500;
+}
+
+td {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container { padding: 1rem; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+/* ========== index.html 전용 스타일 ========== */
+#fullscreen-btn {
+    position: fixed; top: 20px; right: 20px; z-index: 1000;
+    background: #ffffff; border: 1px solid var(--glass-border);
+    color: var(--text-main); padding: 10px 15px; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
+    transition: all 0.3s ease;
+}
+#fullscreen-btn:hover { background: #f8fafc; }
+
+#main-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    padding: 2rem;
+    flex-grow: 1;
+}
+
+.action-card {
+    background: #ffffff;
+    border: 2px solid var(--glass-border);
+    border-radius: 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    box-shadow: var(--shadow-premium);
+}
+.action-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-5px);
+}
+.action-card:active { transform: scale(0.95); }
+.action-card.in { background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), #ffffff); }
+.action-card.out { background: linear-gradient(135deg, rgba(244, 63, 94, 0.05), #ffffff); }
+.action-card i { font-size: 6rem; margin-bottom: 1.5rem; }
+.action-card span { font-size: 3rem; font-weight: 800; color: var(--text-main); }
+
+#employee-selector {
+    display: none;
+    padding: 2rem;
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.back-btn {
+    background: #ffffff;
+    border: 1px solid var(--glass-border);
+    padding: 1rem 2rem;
+    border-radius: 1.5rem;
+    font-size: 1.2rem;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+.back-btn:hover {
+    background: #f1f5f9;
+}
+.employee-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    overflow-y: auto;
+}
+.emp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 2rem;
+    padding: 2.5rem;
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+.emp-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-3px);
+}
+.emp-card:active { background: var(--primary-color); color: white; transform: scale(0.95); }
+
+#digital-clock {
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    text-align: center;
+    padding-top: 0.5rem;
+}
+#digital-date {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 2rem;
+}
+
+/* ========== admin.html 모달 & 인쇄 스타일 ========== */
+.modal {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000;
+    justify-content: center; align-items: center; padding: 20px;
+}
+.modal-content {
+    background: #fff; color: #111; padding: 0; border-radius: 1rem;
+    width: 100%; max-width: 900px; height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+.modal-header {
+    padding: 1.5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+    display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10;
+}
+.contract-body { padding: 40px 60px; position: relative; font-size: 9.5pt; }
+
+.c-table {
+    width: 100%; border-collapse: collapse; margin-bottom: 20px;
+    table-layout: fixed; border: 1px solid #e2e8f0;
+}
+.c-table th, .c-table td {
+    border: 1px solid #e2e8f0; padding: 10px; font-size: 9pt;
+}
+
+.watermark {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 60pt; color: rgba(0,0,0,0.03); font-weight: 900; z-index: -1;
+    white-space: nowrap; pointer-events: none;
+}
+.watermark::before { content: '착한식판 공식문서'; }
+
+.print-footer {
+    position: absolute; bottom: 10mm; left: 20mm; right: 20mm;
+    display: flex; justify-content: space-between; font-size: 8pt; color: #777;
+    border-top: 1px solid #eee; padding-top: 5px;
+}
+
+/* 인쇄 최적화 */
+@media print {
+    @page { margin: 0; size: auto; }
+    html, body { margin: 0; padding: 0; background: #fff !important; width: 210mm; }
+    body * { visibility: hidden !important; }
+    .print-active, .print-active * { visibility: visible !important; }
+    #contract-modal, #payroll-slip-modal, .modal-content, .contract-body, .slip-body {
+        display: block !important;
+        visibility: hidden !important;
+        position: static !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: none !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+    .modal-header, .sidebar, .top-bar, .btn, .top-stats, .card, .attendance-section {
+        display: none !important;
+    }
+    .print-active {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 210mm !important;
+        display: block !important;
+        visibility: visible !important;
+        z-index: 9999;
+    }
+    .print-page {
+        position: relative !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        padding: 20mm !important;
+        page-break-after: always !important;
+        box-sizing: border-box !important;
+        background: white !important;
+        overflow: hidden;
+    }
+    .watermark {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 60pt; color: rgba(0,0,0,0.03) !important; font-weight: 900; z-index: -1;
+        white-space: nowrap; pointer-events: none;
+        display: block !important; visibility: visible !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    .watermark::before { content: '착한식판 공식문서'; }
+    .print-footer {
+        position: absolute; bottom: 10mm; left: 20mm; right: 20mm;
+        display: flex; justify-content: space-between; font-size: 8pt; color: #777 !important;
+        border-top: 1px solid #eee; padding-top: 5px;
+    }
+    img[src*="sign.png"] {
+        display: block !important;
+        visibility: visible !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    .sig-box { border: none !important; padding: 10px 0; }
+}

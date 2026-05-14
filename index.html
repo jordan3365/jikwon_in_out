@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출퇴근관리시스템 ver 1.0 | 착한식판</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            background: #020617;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        /* 전체화면 버튼 스타일 */
+        #fullscreen-btn {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 10px 15px; border-radius: 12px; cursor: pointer;
+            backdrop-filter: blur(10px); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
+            transition: all 0.3s ease;
+        }
+        #fullscreen-btn:hover { background: rgba(255,255,255,0.2); }
+        
+        /* 메인 대형 카드 레이아웃 */
+        #main-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            flex-grow: 1;
+        }
+        
+        .action-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid var(--glass-border);
+            border-radius: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+        }
+        
+        .action-card:hover {
+            border-color: var(--primary-color);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .action-card:active { transform: scale(0.95); }
+        
+        .action-card.in { background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), transparent); }
+        .action-card.out { background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), transparent); }
+        
+        .action-card i { font-size: 6rem; margin-bottom: 1.5rem; }
+        .action-card span { font-size: 3rem; font-weight: 800; }
+        
+        /* 직원 선택 화면 */
+        #employee-selector {
+            display: none;
+            padding: 2rem;
+            flex-grow: 1;
+            flex-direction: column;
+        }
+        
+        .selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 1.5rem 3rem;
+            border-radius: 1.5rem;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .employee-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .emp-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 2rem;
+            padding: 2.5rem;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .emp-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+        
+        .emp-card:active { background: var(--primary-color); transform: scale(0.95); }
+        
+        #digital-clock {
+            font-size: 4rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            text-align: center;
+            padding-top: 0.5rem;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+        #digital-date {
+            font-size: 4rem;
+            font-weight: 800;
+            color: white;
+            text-align: center;
+            padding-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <button id="fullscreen-btn" onclick="toggleFullscreen()">
+        <i data-lucide="maximize"></i> 전체화면
+    </button>
+    <div id="loading-overlay"></div>
+    <div id="digital-date">0000년 00월 00일 (요일)요일</div>
+    <div id="digital-clock">00:00:00</div>
+
+    <!-- 1단계: 출근/퇴근 선택 -->
+    <div id="main-selector">
+        <div class="action-card in" onclick="showEmployeeSelector('in')">
+            <i data-lucide="log-in" style="color: #10b981;"></i>
+            <span style="color: #10b981;">출근하기</span>
+        </div>
+        <div class="action-card out" onclick="showEmployeeSelector('out')">
+            <i data-lucide="log-out" style="color: #f43f5e;"></i>
+            <span style="color: #f43f5e;">퇴근하기</span>
+        </div>
+    </div>
+
+    <!-- 2단계: 직원 선택 -->
+    <div id="employee-selector">
+        <div class="selector-header">
+            <button class="back-btn" onclick="showMainSelector()">
+                <i data-lucide="arrow-left"></i> 처음으로
+            </button>
+            <h1 id="selection-title" style="font-size: 3rem; color: white;">성명을 선택하세요</h1>
+            <div style="width: 150px;"></div>
+        </div>
+        <div id="employee-grid" class="employee-grid">
+            <!-- 직원 카드 렌더링 -->
+        </div>
+    </div>
+
+    <script src="js/attendance.js"></script>
+    <script>
+        lucide.createIcons();
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                const docEl = document.documentElement;
+                if (docEl.requestFullscreen) docEl.requestFullscreen();
+                else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+                else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+                document.getElementById('fullscreen-btn').innerHTML = '<i data-lucide="minimize"></i> 화면 축소';
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
+                document.getElementById('fullscreen-btn').innerHTML = '<i data-lucide="maximize"></i> 전체화면';
+            }
+            lucide.createIcons();
+        }
+
+        function updateTime() {
+            const now = new Date();
+            // 시간 업데이트 (오전/오후 표시 포함)
+            document.getElementById('digital-clock').innerText = now.toLocaleTimeString('ko-KR', { hour12: true });
+            // 날짜 업데이트 (예: 2024년 5월 7일 (화)요일)
+            const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+            const dayStr = now.toLocaleDateString('ko-KR', { weekday: 'short' });
+            document.getElementById('digital-date').innerText = `${dateStr} (${dayStr})요일`;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>

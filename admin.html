@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>급여관리시스템 ver 1.0 | 착한식판</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* A4 인쇄 최적화 - 새 창(window.open) 방식 사용으로 본 페이지 인쇄 시 간섭 없음 */
+        @media print {
+            @page { margin: 0; size: A4; }
+            body { margin: 0; }
+        }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .modal-content {
+            background: #fff; color: #111; padding: 0; border-radius: 1rem;
+            width: 100%; max-width: 900px; height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 1.5rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+            display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10;
+        }
+        .contract-body { padding: 40px 60px; position: relative; font-size: 9.5pt; }
+        
+        .c-table {
+            width: 100%; border-collapse: collapse; margin-bottom: 20px;
+            table-layout: fixed; border: 1px solid #e2e8f0;
+        }
+        .c-table th, .c-table td {
+            border: 1px solid #e2e8f0; padding: 10px; font-size: 9pt;
+        }
+        /* 화면 미리보기용 워터마크 */
+        .watermark {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 60pt; color: rgba(0,0,0,0.03); font-weight: 900; z-index: -1; 
+            white-space: nowrap; pointer-events: none;
+        }
+        .watermark::before { content: '착한식판 공식문서'; }
+
+        /* 인쇄 2부 출력을 위한 페이지 나누기 */
+        .print-page { page-break-after: always; position: relative; }
+        .print-page:last-child { page-break-after: auto; }
+        
+        /* 도장 이미지 강제 출력 및 호환성 설정 */
+        img[src*="sign.png"] {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+
+        .sig-box { border: none !important; padding: 10px 0; } /* 보더 제거 */
+    </style>
+</head>
+<body>
+    <div class="container animate-fade">
+        <header>
+            <div class="logo">착한식판 | 급여관리시스템 ver 1.0 <span style="font-weight: 300; font-size: 1.2rem;">| Admin</span></div>
+            <div id="current-date" style="font-weight: 600; color: var(--primary-color);"></div>
+        </header>
+
+        <main>
+            <div class="dashboard-grid">
+                <!-- Statistics -->
+                <div class="card">
+                    <h3><i data-lucide="users"></i> 전체 등록 직원</h3>
+                    <div class="value" id="total-employees">0</div>
+                </div>
+                <div class="card">
+                    <h3><i data-lucide="clock"></i> 오늘 출근 현황</h3>
+                    <div class="value" id="today-attendance">0</div>
+                </div>
+                <div class="card" style="border-left: 5px solid #10b981;">
+                    <h3><i data-lucide="calculator"></i> 실시간 급여 정산</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">이번 달 누적 정산 현황</p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn btn-primary" onclick="openPayrollModal()" style="width: auto; background: #10b981; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                            <i data-lucide="table"></i> 상세 정산표 보기
+                        </button>
+                        <button class="btn btn-primary" onclick="generatePayroll()" style="width: auto; background: #3b82f6; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                            <i data-lucide="send"></i> 급여정산하기
+                        </button>
+                    </div>
+                </div>
+                <div class="card" style="grid-row: span 2;">
+                    <h3 style="border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; margin-bottom: 20px;">
+                        <i data-lucide="user-plus"></i> 신규 직원 등록
+                    </h3>
+                    <form id="employee-form">
+                        <div class="form-group">
+                            <label>성명</label>
+                            <input type="text" id="emp-name" placeholder="실명을 입력하세요" required>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>생년월일</label>
+                                <input type="text" id="emp-birthday" placeholder="YYMMDD" maxlength="6" required>
+                            </div>
+                            <div class="form-group">
+                                <label>연락처</label>
+                                <input type="tel" id="emp-phone" placeholder="010-0000-0000" maxlength="13" required>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>은행명</label>
+                                <select id="emp-bank-name">
+                                    <option value="">은행 선택</option>
+                                    <option value="국민은행">국민은행</option>
+                                    <option value="신한은행">신한은행</option>
+                                    <option value="우리은행">우리은행</option>
+                                    <option value="하나은행">하나은행</option>
+                                    <option value="기업은행">기업은행</option>
+                                    <option value="농협">농협</option>
+                                    <option value="카카오뱅크">카카오뱅크</option>
+                                    <option value="토스뱅크">토스뱅크</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>계좌번호</label>
+                                <input type="text" id="emp-bank-account" placeholder="숫자만 입력">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group">
+                                <label>급여유형</label>
+                                <select id="emp-type">
+                                    <option value="hourly">시급제 (3.3%)</option>
+                                    <option value="daily">일급제 (3.3%)</option>
+                                    <option value="monthly">월급제 (4대보험)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>금액</label>
+                                <input type="number" id="emp-rate" placeholder="0" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>업무파트</label>
+                            <input type="text" id="emp-work-part" placeholder="예: 배송, 주방보조">
+                        </div>
+                        <div class="form-group">
+                            <label>소정근로시간</label>
+                            <div style="display: flex; gap: 5px; align-items: center;">
+                                <input type="time" id="emp-start-time" value="09:00"> <span>~</span>
+                                <input type="time" id="emp-end-time" value="18:00">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 10px;">저장 및 등록</button>
+                    </form>
+                </div>
+
+                <!-- Contract Menu -->
+                <div class="card">
+                    <h3 style="color: var(--secondary-color);"><i data-lucide="file-signature"></i> 직원 계약 관리</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 10px 0;">등록된 직원의 전자 계약서를 생성하고 출력할 수 있습니다.</p>
+                    <div id="contract-list" style="max-height: 200px; overflow-y: auto; margin-top: 10px;">
+                        <!-- JS로 로드 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Status Table -->
+            <div class="table-container animate-fade" style="margin-top: 2rem;">
+                <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <h3><i data-lucide="activity"></i> 전체 직원 출퇴근 현황 기록</h3>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="date" id="attendance-date-filter" style="width: auto; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: #ffffff; color: var(--text-main);">
+                        <button class="btn btn-primary" onclick="showMonthView()" style="width: auto; padding: 0.5rem 1rem;">📅 해당월 전체보기</button>
+                        <button class="btn btn-primary" onclick="fetchData()" style="width: auto; padding: 0.5rem 1rem;">새로고침</button>
+                        <button class="btn btn-primary" onclick="downloadExcel()" style="width: auto; padding: 0.5rem 1rem; background: #10b981;">⬇️ 엑셀 다운로드</button>
+                    </div>
+
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>성명</th>
+                            <th>날짜</th>
+                            <th>출근 일시</th>
+                            <th>퇴근 일시</th>
+                            <th>근무 시간</th>
+                            <th>예상급여</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-table-body">
+                        <!-- 데이터 로드 -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Contract Modal (Premium Template) -->
+    <div id="contract-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="font-weight: 700;">근로계약서 미리보기</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="printTwoCopies('contract-print-area', '근로계약서')" style="width: auto; background: #10b981;">인쇄 / PDF 저장 (2부 자동출력)</button>
+                    <button class="btn" onclick="closeModal()" style="width: auto; background: #64748b; color: white;">닫기</button>
+                </div>
+            </div>
+            <div id="contract-print-area" class="contract-body">
+                <div class="watermark">착한식판 공식문서</div>
+                
+                <h1 style="text-align: center; font-size: 20pt; margin-bottom: 30px; font-weight: 900; letter-spacing: 5px;">근로[<span id="c-classification">단기</span>]계약서</h1>
+                
+                <p style="text-indent: 10px; margin-bottom: 20px;">
+                    <strong>황지영</strong> (이하 “사업주”라 함)(와) <strong><span id="c-worker"></span></strong> (이하 “근로자”라 함)은 다음과 같이 근로계약을 체결한다.
+                </p>
+
+                <div style="margin-bottom: 10px;"><strong>1. 근로계약기간 :</strong> <span id="c-today"></span>부터 (기한이 없는)</div>
+                <div style="margin-bottom: 10px;"><strong>2. 근무장소 :</strong> 경기도 하남시 미사대로 550 현대지식산업센터 한강미사1차 C2-0088호 착한식판</div>
+                <div style="margin-bottom: 10px;"><strong>3. 업무내용 :</strong> [<span id="c-work-part"></span>] - <span id="c-details-work">운영지원 및 배송 보조 제반 업무</span></div>
+                <div style="margin-bottom: 10px;"><strong>4. 소정근로시간 :</strong> 매일 <span id="c-start-time">00:00</span> ~ <span id="c-end-time">00:00</span> 시까지</div>
+                <div style="margin-bottom: 10px;"><strong>5. 근무일/휴일 :</strong> 매주 <span id="c-work-day">월~금</span> 일(월~금)</div>
+                
+                <div style="margin-bottom: 15px;">
+                    <strong>6. 임금지급 상세</strong><br>
+                    <div style="padding-left: 15px; margin-top: 5px;">
+                        -. 시급 : <span id="c-time-pay">0</span> 원 / 월정액 : <span id="c-month-pay">0</span> 원<br>
+                        -. 지급일 : 매월 10 일 (입금일이 공휴일인 경우 전일 지급)<br>
+                        -. 지급계좌 : <span id="c-worker-bank-name"></span> <span id="c-worker-bank-number"></span> (예금주: <span id="c-worker-num-name"></span>)<br>
+                        -. 세금공제 : <span id="c-tax-deduction">3.3% 사업소득세</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 9pt; color: #333;">
+                    <p><strong>7. 근로계약서 교부</strong><br>-. 사업주는 근로계약을 체결함과 동시에 본 계약서를 사본하여 근로자의 교부요구와 관계없이 근로자에게 교부함(근로기준법 제17조 이행)</p>
+                    <p style="margin-top: 8px;"><strong>8. 근로계약, 취업규칙 등의 성실한 이행의무</strong><br>
+                        -. 사업주는 근로계약의 관한 내용을 성실히 이행한다.<br>
+                        -. 근로자는 사업주가 지정하고 지시하는 업무를 성실히 이행한다.<br>
+                        -. 배송 시 거래처 클레임을 최소화 할 수 있도록 노력한다.<br>
+                        -. 차량운전(운행)시 근로자의 귀책으로 발생하는 범칙금은 근로자 책임으로 한다. (예, 주정차위반/속도위반(스쿨존)/신호위반 외 운전자 과실로 인한 과태료)<br>
+                        -. 사업주 거래처 휴일 및 휴원,방학으로 인한 물량 감소 기간은 무급 휴무로 한다.
+                    </p>
+                    <p style="margin-top: 8px;"><strong>9. 기 타</strong><br>-. 이 계약에 정함이 없는 사항은 근로기준법령에 의함</p>
+                    <p style="margin-top: 8px;"><strong>10. 근로자 제출서류</strong><br>-. 보건증 1부 / 주민등록등본 1부 / 입금계좌사본 1부(제3자 명의 불가)</p>
+                </div>
+
+                <p style="margin-top: 30px; font-weight: bold; text-align: center;">작성일자 : <span id="c-write-day"></span></p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
+                    <div class="sig-box">
+                        <strong style="font-size: 11pt;">[사업주]</strong><br>
+                        성 명 : 황지영 
+                        <span style="position: relative; display: inline-block;">
+                            <img src="img/sign.png" alt="도장" style="position: absolute; top: -70px; left: -40px; width: 200px; opacity: 0.7; z-index: 10;">
+                        </span><br>
+                        사업자등록번호 : 406-16-00946<br>
+                        전화번호 : 010-5470-0928<br>
+                        성 명 : <span style="font-family: 'cursive'; font-size: 14pt;">황지영</span>
+                    </div>
+                    <div class="sig-box">
+                        <strong style="font-size: 11pt;">[근로자]</strong><br>
+                        성 명 : <span id="c-worker-name"></span><br>
+                        생년월일 : <span id="c-worker-birthday"></span><br>
+                        전화번호 : <span id="c-phone-num"></span><br>
+                        성 명 : <span id="c-worker-sig" style="font-family: 'cursive'; font-size: 14pt;"></span>
+                    </div>
+                </div>
+
+                <p style="margin-top: 40px; text-align: center; font-size: 8pt; color: #666;">
+                    “본 계약은 전자문서 및 전자거래 기본법에 따라 전자적 방법으로 체결되며, 양 당사자는 전자서명된 계약서의 법적 효력을 인정한다”
+                </p>
+
+                <div class="print-footer">
+                    <div id="print-timestamp-info"></div>
+                    <div>Page 1 / 1</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Modal — 급여정산하기: 직원 선택 후 정산/카카오 발송 -->
+    <div id="payroll-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <div>
+                    <h2 style="font-weight: 700;"><i data-lucide="calculator"></i> 이번 달 급여 정산</h2>
+                    <p id="payroll-modal-month" style="font-size: 0.85rem; color: #64748b; margin-top: 4px;"></p>
+                </div>
+                <button class="btn" onclick="closePayrollModal()" style="width: auto; background: #64748b; color: white;">닫기</button>
+            </div>
+            <div style="padding: 1.5rem 2rem 0.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 12px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; color: #1e293b;">
+                    <input type="checkbox" id="payroll-select-all" onchange="toggleSelectAll(this)" style="width: 16px; height: 16px; cursor: pointer;">
+                    전체 선택
+                </label>
+                <span id="payroll-selected-count" style="font-size: 0.85rem; color: #64748b;">0명 선택됨</span>
+                <div style="margin-left: auto; display: flex; gap: 8px;">
+                    <button class="btn btn-primary" onclick="runSelectedPayroll()" style="width: auto; padding: 0.5rem 1rem; background: #3b82f6;">
+                        <i data-lucide="check-circle"></i> 선택 정산하기
+                    </button>
+                    <button class="btn btn-primary" onclick="sendSelectedKakao()" style="width: auto; padding: 0.5rem 1rem; background: #FEE500; color: #1e293b; font-weight: 700;">
+                        💬 카카오 발송
+                    </button>
+                    <button class="btn btn-primary" onclick="sendSelectedSMS()" style="width: auto; padding: 0.5rem 1rem; background: #10b981; color: white; font-weight: 700;">
+                        📱 문자 발송
+                    </button>
+                </div>
+            </div>
+            <div style="padding: 1rem 2rem 2rem; overflow-x: auto; max-height: 55vh; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; background: white; color: #111;">
+                    <thead style="background: #f1f5f9; position: sticky; top: 0;">
+                        <tr>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; width: 44px;"></th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; text-align: left;">직원명</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">급여유형</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">총 근무일</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">총 근무시간</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">정산 합계</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">연락처</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0;">명세서</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payroll-table-body" style="text-align: center;">
+                        <!-- JS 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Payroll Slip Modal -->
+    <div id="payroll-slip-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 style="font-weight: 700;">급여명세서 미리보기</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="printTwoCopies('slip-print-area', '급여명세서')" style="width: auto; background: #10b981;">인쇄 / PDF 저장 (2부 자동출력)</button>
+                    <button class="btn" onclick="closePayrollSlipModal()" style="width: auto; background: #64748b; color: white;">닫기</button>
+                </div>
+            </div>
+            <div id="slip-print-area" class="contract-body" style="background: white; color: #111;">
+                <div class="watermark">착한식판 공식문서</div>
+                <h1 style="text-align: center; font-size: 22pt; margin-bottom: 30px; font-weight: 900; text-decoration: underline;">급여 명세서</h1>
+                
+                <table class="c-table">
+                    <tr>
+                        <th style="background: #f8fafc; width: 20%;">성 명</th>
+                        <td id="s-name" style="width: 30%;"></td>
+                        <th style="background: #f8fafc; width: 20%;">정산월</th>
+                        <td id="s-month" style="width: 30%;"></td>
+                    </tr>
+                    <tr>
+                        <th style="background: #f8fafc;">총 근무일</th>
+                        <td id="s-days"></td>
+                        <th style="background: #f8fafc;">총 근무시간</th>
+                        <td id="s-hours"></td>
+                    </tr>
+                </table>
+
+                <h3 style="margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px;">지급 및 공제 상세 내역</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h4 style="font-size: 10pt; margin-bottom: 5px;">[지급 내역]</h4>
+                        <table class="c-table" style="border-color: #e2e8f0;">
+                            <tr>
+                                <th style="background: #f8fafc; font-size: 9pt;">기본급/수당</th>
+                                <td id="s-base-pay" style="text-align: right; font-weight: 700; font-size: 9pt;"></td>
+                            </tr>
+                            <tr>
+                                <th style="background: #f8fafc; font-size: 9pt;">지급 합계</th>
+                                <td id="s-gross-pay" style="text-align: right; font-weight: 800; color: #1e293b; font-size: 9pt;"></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 10pt; margin-bottom: 5px;">[공제 내역]</h4>
+                        <table class="c-table" style="border-color: #e2e8f0;">
+                            <tr>
+                                <th id="s-tax-name" style="background: #f8fafc; font-size: 9pt;">세금/보험</th>
+                                <td id="s-tax-amount" style="text-align: right; font-weight: 700; color: #f43f5e; font-size: 9pt;"></td>
+                            </tr>
+                            <tr>
+                                <th style="background: #f8fafc; font-size: 9pt;">공제 합계</th>
+                                <td id="s-tax-total" style="text-align: right; font-weight: 800; color: #f43f5e; font-size: 9pt;"></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px; background: #f1f5f9; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11pt; font-weight: 800;">최종 실수령액 (Net Pay)</span>
+                    <span id="s-total-pay" style="font-size: 14pt; font-weight: 900; color: #16a34a;"></span>
+                </div>
+
+                <div style="margin-top: 50px; text-align: center; position: relative;">
+                    <p style="font-size: 12pt;">위와 같이 급여를 지급하였음을 확인합니다.</p>
+                    <p style="margin-top: 20px; font-weight: bold; font-size: 11pt;"><span id="s-date"></span></p>
+                    <div style="margin-top: 40px; text-align: right; padding-right: 50px; position: relative;">
+                        <p style="font-size: 13pt; font-weight: 800;">착한식판 대표 황지영 
+                            <span style="position: relative; display: inline-block;">
+                                (인)
+                                <img src="img/sign.png" alt="도장" style="position: absolute; top: -85px; left: -70px; width: 200px; opacity: 0.7; z-index: 10;">
+                            </span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="print-footer">
+                    <div id="slip-timestamp"></div>
+                    <div>Page 1 / 1</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 인쇄 전용 포털 (JS가 여기에 인쇄 내용을 동적으로 삽입) -->
+    <div id="print-portal"></div>
+
+    <script src="js/admin.js"></script>
+    <script>
+        lucide.createIcons();
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('ko-KR', {
+            year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+        });
+    </script>
+</body>
+</html>
