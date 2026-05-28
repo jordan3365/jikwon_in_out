@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyXLZ2Vvv0QQTkKN8DqaYh-cNOyTt0rP53UWKnq-XCvDsBsgkXq0m6yT_SJuKZwuUJMVQ/exec'; 
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwutQLhbM5cbM8jONC14jcMUTwSQ8Jhg8lRAphqaOSU3UrxZ7An1bhZ7zoJ0VsJUDE/exec'; 
 
 // State
 let employees = [];
@@ -219,6 +219,9 @@ function updateUI() {
 
         return `
             <tr>
+                <td style="text-align: center;">
+                    <input type="checkbox" class="att-record-check" data-att-id="${att.id}" style="width: 15px; height: 15px; cursor: pointer;">
+                </td>
                 <td style="font-weight: 700;">${emp.name}</td>
                 <td>${att.date}</td>
                 <td style="color: #10b981; font-family: monospace;">${displayIn}</td>
@@ -229,10 +232,39 @@ function updateUI() {
         `;
     }).reverse().join(''); // 최신순
 
+    // 전체선택 체크박스 초기화
+    const selectAllCheckbox = document.getElementById('att-select-all');
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+
     // 2. 직원 관리 리스트 (수정/삭제/계약서)
     renderContractList();
     
     lucide.createIcons();
+}
+
+function toggleAttSelectAll(checkbox) {
+    document.querySelectorAll('.att-record-check').forEach(function(cb) {
+        cb.checked = checkbox.checked;
+    });
+}
+
+async function deleteSelectedAttendance() {
+    const checked = document.querySelectorAll('.att-record-check:checked');
+    if (checked.length === 0) { alertModal('삭제할 출퇴근 기록을 선택해주세요.'); return; }
+    const selectedIds = Array.from(checked).map(cb => cb.dataset.attId);
+    
+    confirmModal(`${selectedIds.length}개의 출퇴근 기록을 삭제하시겠습니까?`, async function() {
+        try {
+            var res = await callGAS({ action: 'deleteAttendance', ids: selectedIds });
+            if (res && res.success) {
+                successModal(res.message || '삭제가 완료되었습니다.', fetchData);
+            } else {
+                errorModal('오류: ' + (res ? res.message : '알 수 없는 오류'));
+            }
+        } catch (err) {
+            errorModal('통신 오류: ' + err.message);
+        }
+    });
 }
 
 function renderContractList() {
@@ -753,7 +785,7 @@ function downloadExcel() {
         targetData = attendance.filter(a => a.date && a.date.startsWith(currentMonth));
     }
 
-    // CSV 뮸시엔 BOM 추가(한글 라벨 핅트를 위해)
+    // CSV 생성시엔 BOM 추가(한글 라벨 필터를 위해)
     let csv = '\uFEFF성명,날짜,출근시간,퇴근시간,근무시간(시간),예상급여(원)\n';
     targetData.forEach(att => {
         const emp = employees.find(e => e.id === att.employeeId) || { name: '퇴사자', rate: 0, type: '' };

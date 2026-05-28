@@ -51,6 +51,7 @@ function doPost(e) {
       case 'processPayroll': result = processPayroll(data); break;
       case 'sendPayrollKakao': result = sendPayrollKakao(data); break;
       case 'sendPayrollSMS': result = sendPayrollSMS(data); break;
+      case 'deleteAttendance': result = deleteAttendance(data); break;
       default: result = { success: false, message: '잘못된 요청' };
     }
   } catch (err) {
@@ -97,6 +98,29 @@ function deleteEmployee(data) {
     }
   }
   return { success: false, message: '직원을 찾을 수 없습니다.' };
+}
+
+function deleteAttendance(data) {
+  const sheet = getOrCreateSheet(SHEETS.ATTENDANCE);
+  const rows = sheet.getDataRange().getValues();
+  const targetIds = data.ids || [];
+  
+  if (targetIds.length === 0) return { success: false, message: '삭제할 ID가 없습니다.' };
+  
+  let deletedCount = 0;
+  // 역순으로 삭제해야 행 인덱스가 꼬이지 않음
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (targetIds.includes(rows[i][0])) {
+      sheet.deleteRow(i + 1);
+      deletedCount++;
+    }
+  }
+  
+  if (deletedCount > 0) {
+    return { success: true, message: `${deletedCount}개의 출퇴근 기록이 삭제되었습니다.` };
+  } else {
+    return { success: false, message: '해당 출퇴근 기록을 찾을 수 없습니다.' };
+  }
 }
 
 function getAllData() {
@@ -456,7 +480,7 @@ function getSheetData(sheetName) {
   };
 
   for (let i = 1; i < rows.length; i++) {
-    // 모든 셀이 비어있는 행은 건너맰 (Google Sheets 빈 행 방지)
+    // 모든 셀이 비어있는 행은 건너뜀 (Google Sheets 빈 행 방지)
     if (rows[i].every(cell => cell === '' || cell === null || cell === undefined)) continue;
     
     let obj = {};

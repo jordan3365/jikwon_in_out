@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyXLZ2Vvv0QQTkKN8DqaYh-cNOyTt0rP53UWKnq-XCvDsBsgkXq0m6yT_SJuKZwuUJMVQ/exec'; // 여기에 구글 앱스 스크립트 배포 URL을 입력하세요.
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwutQLhbM5cbM8jONC14jcMUTwSQ8Jhg8lRAphqaOSU3UrxZ7An1bhZ7zoJ0VsJUDE/exec'; // 여기에 구글 앱스 스크립트 배포 URL을 입력하세요.
 
 // State
 let employees = [];

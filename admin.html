@@ -177,6 +177,7 @@
                         <input type="date" id="attendance-date-filter" style="width: auto; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: #ffffff; color: var(--text-main);">
                         <button class="btn btn-primary" onclick="showMonthView()" style="width: auto; padding: 0.5rem 1rem;">📅 해당월 전체보기</button>
                         <button class="btn btn-primary" onclick="fetchData()" style="width: auto; padding: 0.5rem 1rem;">새로고침</button>
+                        <button class="btn btn-primary" onclick="deleteSelectedAttendance()" style="width: auto; padding: 0.5rem 1rem; background: #f43f5e;"><i data-lucide="trash-2"></i> 선택 삭제</button>
                         <button class="btn btn-primary" onclick="downloadExcel()" style="width: auto; padding: 0.5rem 1rem; background: #10b981;">⬇️ 엑셀 다운로드</button>
                     </div>
 
@@ -184,6 +185,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 44px; text-align: center;"><input type="checkbox" id="att-select-all" onchange="toggleAttSelectAll(this)" style="width: 16px; height: 16px; cursor: pointer;"></th>
                             <th>성명</th>
                             <th>날짜</th>
                             <th>출근 일시</th>
