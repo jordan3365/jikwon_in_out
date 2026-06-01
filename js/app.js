@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwutQLhbM5cbM8jONC14jcMUTwSQ8Jhg8lRAphqaOSU3UrxZ7An1bhZ7zoJ0VsJUDE/exec'; // 여기에 구글 앱스 스크립트 배포 URL을 입력하세요.
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwDg6__Bb2QmZoli9NKWpXG6qx_QUnQu1XnO3YbVcSJeJjbv6puiTvPGPx4z___pNytzA/exec'; // 여기에 구글 앱스 스크립트 배포 URL을 입력하세요.
 
 // State
 let employees = [];
@@ -186,7 +186,6 @@ function closeModal() {
     document.getElementById('contract-modal').style.display = 'none';
 }
 
-// AI 음성 안내 기능
 function speak(text) {
     const msg = new SpeechSynthesisUtterance();
     msg.text = text;
@@ -194,8 +193,14 @@ function speak(text) {
     msg.rate = 1.0;
     
     const voices = window.speechSynthesis.getVoices();
-    const krVoice = voices.find(v => (v.name.includes('Google') || v.name.includes('Korean')) && v.lang === 'ko-KR') || voices.find(v => v.lang === 'ko-KR');
-    if (krVoice) msg.voice = krVoice;
+    let krVoices = voices.filter(v => v.lang.includes('ko') || v.lang.includes('KO'));
+    let selectedVoice = krVoices.find(v => v.name.includes('Google 한국의'))
+        || krVoices.find(v => v.name.includes('Google') && v.name.toLowerCase().includes('female'))
+        || krVoices.find(v => v.name.includes('Google'))
+        || krVoices.find(v => v.name.toLowerCase().includes('female'))
+        || krVoices[0];
+        
+    if (selectedVoice) msg.voice = selectedVoice;
     
     window.speechSynthesis.speak(msg);
 }

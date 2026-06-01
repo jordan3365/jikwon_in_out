@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwutQLhbM5cbM8jONC14jcMUTwSQ8Jhg8lRAphqaOSU3UrxZ7An1bhZ7zoJ0VsJUDE/exec'; 
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwDg6__Bb2QmZoli9NKWpXG6qx_QUnQu1XnO3YbVcSJeJjbv6puiTvPGPx4z___pNytzA/exec'; 
 
 // State
 let employees = [];
@@ -7,11 +7,34 @@ let attendance = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('admin_logged_in') !== 'true') {
+        const overlay = document.getElementById('login-overlay');
+        if(overlay) overlay.style.display = 'flex';
+    } else {
+        const overlay = document.getElementById('login-overlay');
+        if(overlay) overlay.style.display = 'none';
+        initApp();
+    }
+});
+
+function initApp() {
     initDefaultDate();
     fetchData();
     setupEventListeners();
     initCustomModal();
-});
+}
+
+function checkAdminPassword() {
+    const pw = document.getElementById('admin-pw').value;
+    if (pw === '1234') { 
+        sessionStorage.setItem('admin_logged_in', 'true');
+        const overlay = document.getElementById('login-overlay');
+        if(overlay) overlay.style.display = 'none';
+        initApp();
+    } else {
+        alert('비밀번호가 일치하지 않습니다.');
+    }
+}
 
 function initDefaultDate() {
     const now = new Date();
@@ -175,11 +198,33 @@ async function fetchData() {
     }
 }
 
+async function handleRefresh() {
+    const icon = document.getElementById('refresh-icon');
+    const btn = document.getElementById('refresh-btn');
+    if (icon) icon.classList.add('spin');
+    if (btn) btn.disabled = true;
+    
+    await fetchData();
+    
+    if (icon) icon.classList.remove('spin');
+    if (btn) btn.disabled = false;
+}
+
+function getLocalDateFormat(dateStr) {
+    if (!dateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).trim())) return String(dateStr).trim();
+    if (String(dateStr).includes('T')) {
+        const d = new Date(dateStr);
+        if (!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    return String(dateStr).substring(0, 10);
+}
+
 function updateUI() {
     document.getElementById('total-employees').innerText = employees.length;
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const todayAttendance = attendance.filter(a => a.date === today);
+    const todayAttendance = attendance.filter(a => getLocalDateFormat(a.date) === today);
     
     // 오늘 출근 현황 보드에 성함 표기
     const attendeeNames = todayAttendance.map(a => {
@@ -194,18 +239,17 @@ function updateUI() {
         </div>
     `;
 
-    // 1. 출퇴근 현황 테이블 (상세 일시 표시 - 한국 표준)
     const filterEl = document.getElementById('attendance-date-filter');
     const dateFilterVal = filterEl ? filterEl.value : '';
     let filteredAttendance;
     if (dateFilterVal) {
         // 날짜 지정: 해당 날짜만
-        filteredAttendance = attendance.filter(a => a.date === dateFilterVal);
+        filteredAttendance = attendance.filter(a => getLocalDateFormat(a.date) === dateFilterVal);
     } else {
         // 날짜 미지정(전체보기): 이번 달 1일~현재
         const n = new Date();
         const currentMonth = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
-        filteredAttendance = attendance.filter(a => a.date && a.date.startsWith(currentMonth));
+        filteredAttendance = attendance.filter(a => getLocalDateFormat(a.date).startsWith(currentMonth));
     }
     
     const tbody = document.getElementById('attendance-table-body');
@@ -214,8 +258,9 @@ function updateUI() {
         const hours = calculateWorkHours(att.clockIn, att.clockOut);
         
         // 날짜와 시간을 합쳐서 표시 (YYYY-MM-DD HH:mm:ss)
-        const displayIn = att.clockIn ? `${att.date} ${att.clockIn}` : '-';
-        const displayOut = att.clockOut ? `${att.date} ${att.clockOut}` : '-';
+        const displayDate = getLocalDateFormat(att.date);
+        const displayIn = att.clockIn ? `${displayDate} ${att.clockIn}` : '-';
+        const displayOut = att.clockOut ? `${displayDate} ${att.clockOut}` : '-';
 
         return `
             <tr>
@@ -223,7 +268,7 @@ function updateUI() {
                     <input type="checkbox" class="att-record-check" data-att-id="${att.id}" style="width: 15px; height: 15px; cursor: pointer;">
                 </td>
                 <td style="font-weight: 700;">${emp.name}</td>
-                <td>${att.date}</td>
+                <td>${displayDate}</td>
                 <td style="color: #10b981; font-family: monospace;">${displayIn}</td>
                 <td style="color: #f43f5e; font-family: monospace;">${displayOut}</td>
                 <td style="font-weight: 600;">${hours}h</td>
@@ -303,7 +348,7 @@ function openPayrollModal() {
     const typeLabel = { hourly: '시급제', daily: '일급제', monthly: '월급제' };
 
     tbody.innerHTML = employees.map(emp => {
-        const monthlyAtt = attendance.filter(a => a.employeeId === emp.id && a.date && a.date.startsWith(currentMonth));
+        const monthlyAtt = attendance.filter(a => a.employeeId === emp.id && getLocalDateFormat(a.date).startsWith(currentMonth));
         let totalHours = 0;
         let totalPay = 0;
 
@@ -437,7 +482,7 @@ function printPayrollSlip(empId) {
 
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthlyAtt = attendance.filter(a => a.employeeId === emp.id && a.date.startsWith(currentMonth));
+    const monthlyAtt = attendance.filter(a => a.employeeId === emp.id && getLocalDateFormat(a.date).startsWith(currentMonth));
     
     let totalHours = 0;
     let grossTotal = 0;
@@ -778,11 +823,11 @@ function downloadExcel() {
 
     let targetData = attendance;
     if (dateFilterVal) {
-        targetData = attendance.filter(a => a.date === dateFilterVal);
+        targetData = attendance.filter(a => getLocalDateFormat(a.date) === dateFilterVal);
     } else {
         // 전체보기 상태이면 이번 달 1일~오늘
         const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-        targetData = attendance.filter(a => a.date && a.date.startsWith(currentMonth));
+        targetData = attendance.filter(a => getLocalDateFormat(a.date).startsWith(currentMonth));
     }
 
     // CSV 생성시엔 BOM 추가(한글 라벨 필터를 위해)
@@ -791,7 +836,8 @@ function downloadExcel() {
         const emp = employees.find(e => e.id === att.employeeId) || { name: '퇴사자', rate: 0, type: '' };
         const hours = calculateWorkHours(att.clockIn, att.clockOut);
         const pay = calculatePay(att, emp);
-        csv += `"${emp.name}","${att.date}","${att.clockIn || '-'}","${att.clockOut || '-'}","${hours}","${pay.toLocaleString()}"\n`;
+        const displayDate = getLocalDateFormat(att.date);
+        csv += `"${emp.name}","${displayDate}","${att.clockIn || '-'}","${att.clockOut || '-'}","${hours}","${pay.toLocaleString()}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyXLZ2Vvv0QQTkKN8DqaYh-cNOyTt0rP53UWKnq-XCvDsBsgkXq0m6yT_SJuKZwuUJMVQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwDg6__Bb2QmZoli9NKWpXG6qx_QUnQu1XnO3YbVcSJeJjbv6puiTvPGPx4z___pNytzA/exec';
 
 // State
 let employees = [];
@@ -157,9 +157,12 @@ function speak(text) {
         const voices = window.speechSynthesis.getVoices();
         
         // 브라우저별 최적의 한국어 목소리 선택
-        let selectedVoice = voices.find(v => v.lang.includes('ko') && v.name.includes('Google')) 
-            || voices.find(v => v.lang.includes('ko') && v.name.toLowerCase().includes('female'))
-            || voices.find(v => v.lang.includes('ko'));
+        let krVoices = voices.filter(v => v.lang.includes('ko') || v.lang.includes('KO'));
+        let selectedVoice = krVoices.find(v => v.name.includes('Google 한국의'))
+            || krVoices.find(v => v.name.includes('Google') && v.name.toLowerCase().includes('female'))
+            || krVoices.find(v => v.name.includes('Google'))
+            || krVoices.find(v => v.name.toLowerCase().includes('female'))
+            || krVoices[0];
             
         if (selectedVoice) utterance.voice = selectedVoice;
         utterance.lang = 'ko-KR';

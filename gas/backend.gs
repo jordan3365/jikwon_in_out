@@ -463,6 +463,7 @@ function getSheetData(sheetName) {
   if (!sheet) return [];
   
   const rows = sheet.getDataRange().getValues();
+  const displayRows = sheet.getDataRange().getDisplayValues();
   if (rows.length < 2) return [];
   
   const headers = rows[0];
@@ -492,7 +493,8 @@ function getSheetData(sheetName) {
         if (header === '날짜' || header === '입사일자' || header === '생년월일') {
           val = Utilities.formatDate(val, "GMT+9", "yyyy-MM-dd");
         } else {
-          val = Utilities.formatDate(val, "GMT+9", "HH:mm:ss");
+          // 구글 시트 1899년 기준 시간값의 역사적 타임존(GMT+9) 오프셋 변경(+32분) 버그 방지를 위해 표시값 그대로 사용
+          val = displayRows[i][j];
         }
       }
       // 빈 셀(0, false, null, undefined, "") 모두 빈 문자열로 정규화
