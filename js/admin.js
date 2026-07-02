@@ -394,6 +394,7 @@ function renderPayrollTable() {
 
     var typeLabel = { hourly: '시급제', daily: '일급제', monthly: '월급제' };
     var tbody = document.getElementById('payroll-table-body');
+    var grandTotalPay = 0;
 
     tbody.innerHTML = employees.map(emp => {
         var monthlyAtt = attendance.filter(a => a.employeeId === emp.id && getLocalDateFormat(a.date).startsWith(currentMonth));
@@ -404,6 +405,8 @@ function renderPayrollTable() {
             totalHours += parseFloat(calculateWorkHours(att.clockIn, att.clockOut));
             totalPay += calculatePay(att, emp);
         });
+
+        grandTotalPay += totalPay;
 
         var phone = emp.phone || '미등록';
         var hasData = monthlyAtt.length > 0;
@@ -430,6 +433,9 @@ function renderPayrollTable() {
             </tr>
         `;
     }).join('');
+
+    var totalSumEl = document.getElementById('payroll-total-sum');
+    if (totalSumEl) totalSumEl.innerText = '총액: ₩' + grandTotalPay.toLocaleString();
 
     lucide.createIcons();
 }
