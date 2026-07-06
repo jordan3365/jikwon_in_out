@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwDg6__Bb2QmZoli9NKWpXG6qx_QUnQu1XnO3YbVcSJeJjbv6puiTvPGPx4z___pNytzA/exec'; 
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwiTu9zNqDUt6khadLDDAQm9IWvNc5YMV3nYaXZDzYS9E8O0yIQY8jt8BAGqU6xndjDyQ/exec'; 
 
 // State
 let employees = [];
@@ -143,7 +143,9 @@ function setupEventListeners() {
             workPart: document.getElementById('emp-work-part').value,
             joinDate: document.getElementById('emp-join-date').value,
             startTime: document.getElementById('emp-start-time').value,
-            endTime: document.getElementById('emp-end-time').value
+            endTime: document.getElementById('emp-end-time').value,
+            status: (document.getElementById('emp-status') ? document.getElementById('emp-status').value : '입사'),
+            leaveDate: (document.getElementById('emp-leave-date') ? document.getElementById('emp-leave-date').value : '')
         };
         
         try {
@@ -151,6 +153,8 @@ function setupEventListeners() {
             if (res.success) {
                 successModal(editId ? '정보가 수정되었습니다.' : '직원이 등록되었습니다.');
                 form.reset();
+                var leaveDateGroup = document.getElementById('emp-leave-date-group');
+                if (leaveDateGroup) leaveDateGroup.style.display = 'none';
                 initDefaultDate();
                 delete form.dataset.editId;
                 submitBtn.innerText = '저장 및 등록';
@@ -270,6 +274,16 @@ function updateUI() {
         filteredAttendance = attendance.filter(a => getLocalDateFormat(a.date).startsWith(currentMonth));
     }
     
+    // 성명 필터 적용
+    const nameFilterEl = document.getElementById('att-name-filter');
+    const nameFilter = nameFilterEl ? nameFilterEl.value.trim() : '';
+    if (nameFilter) {
+        filteredAttendance = filteredAttendance.filter(a => {
+            const emp = employees.find(e => e.id === a.employeeId);
+            return emp && emp.name.includes(nameFilter);
+        });
+    }
+    
     const tbody = document.getElementById('attendance-table-body');
     tbody.innerHTML = filteredAttendance.map(att => {
         const emp = employees.find(e => e.id === att.employeeId) || { name: '퇴사자' };
@@ -332,10 +346,15 @@ async function deleteSelectedAttendance() {
 
 function renderContractList() {
     const contractList = document.getElementById('contract-list');
-    contractList.innerHTML = employees.map(emp => `
+    contractList.innerHTML = employees.map(emp => {
+        const isResigned = emp.status === '퇴사';
+        const badge = isResigned ? `<span style="margin-left:5px; padding:2px 6px; font-size:0.65rem; color:white; background:#f43f5e; border-radius:10px; vertical-align:middle;">퇴사</span>` : '';
+        const nameColor = isResigned ? 'color: #f87171;' : '';
+        
+        return `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--glass-border);">
             <div style="display: flex; flex-direction: column;">
-                <strong>${emp.name}</strong>
+                <strong style="${nameColor}">${emp.name}${badge}</strong>
                 <span style="font-size: 0.75rem; color: #888;">${emp.workPart || '미정'}</span>
             </div>
             <div style="display: flex; gap: 5px;">
@@ -344,7 +363,8 @@ function renderContractList() {
                 <button class="btn btn-primary" style="width: auto; padding: 4px 8px; font-size: 0.7rem; background: #10b981;" onclick="openContractModal('${emp.id}')">📄 계약서</button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // 급여 정산 모달 열기 — 모달 내 select 초기화 후 테이블 렌더링
@@ -422,8 +442,14 @@ function renderPayrollTable() {
                 <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: left; font-weight: 700;">${emp.name}</td>
                 <td style="padding: 12px; border-bottom: 1px solid #eee;">${typeLabel[emp.type] || emp.type}</td>
                 <td style="padding: 12px; border-bottom: 1px solid #eee;">${monthlyAtt.length}일</td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee;">${totalHours.toFixed(1)}h</td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: 700; color: #10b981;">₩${totalPay.toLocaleString()}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                    <input type="number" step="0.1" class="manual-hours-input" data-emp-id="${emp.id}"
+                        value="${totalHours.toFixed(1)}" 
+                        onchange="updateManualPay(this, '${emp.id}', '${emp.type}', ${emp.rate || 0}, ${monthlyAtt.length})"
+                        style="width: 60px; text-align: center; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 0.85rem;"
+                        ${!hasData ? 'disabled' : ''}> h
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: 700; color: #10b981;" id="pay-cell-${emp.id}" data-base-pay="${totalPay}">₩${totalPay.toLocaleString()}</td>
                 <td style="padding: 12px; border-bottom: 1px solid #eee; font-size: 0.8rem; color: #64748b;">${phone}</td>
                 <td style="padding: 12px; border-bottom: 1px solid #eee;">
                     <button class="btn" style="width: auto; padding: 3px 8px; font-size: 0.75rem; background: #0ea5e9; color: white;" onclick="printPayrollSlip('${emp.id}')">
@@ -439,6 +465,34 @@ function renderPayrollTable() {
 
     lucide.createIcons();
 }
+
+// 수기 수정 시 개별 정산 합계 및 총액 재계산
+window.updateManualPay = function(inputEl, empId, empType, empRate, totalDays) {
+    var newHours = parseFloat(inputEl.value) || 0;
+    var newPay = 0;
+    
+    if (empType === 'monthly') {
+        newPay = Number(empRate); // 월급은 시간 무관
+    } else if (empType === 'hourly') {
+        newPay = Math.floor(newHours * Number(empRate));
+    } else if (empType === 'daily') {
+        newPay = Number(empRate) * totalDays; // 일급은 일수 기준
+    }
+
+    var payCell = document.getElementById('pay-cell-' + empId);
+    if (payCell) {
+        payCell.dataset.basePay = newPay;
+        payCell.innerText = '₩' + newPay.toLocaleString();
+    }
+
+    // 총액 업데이트
+    var grandTotalPay = 0;
+    document.querySelectorAll('[id^="pay-cell-"]').forEach(cell => {
+        grandTotalPay += Number(cell.dataset.basePay) || 0;
+    });
+    var totalSumEl = document.getElementById('payroll-total-sum');
+    if (totalSumEl) totalSumEl.innerText = '총액: ₩' + grandTotalPay.toLocaleString();
+};
 
 // 전체선택/해제
 function toggleSelectAll(checkbox) {
@@ -463,12 +517,29 @@ function updatePayrollSelectedCount() {
 async function runSelectedPayroll() {
     var checked = document.querySelectorAll('.payroll-emp-check:checked');
     if (checked.length === 0) { alertModal('정산할 직원을 선택해주세요.'); return; }
-    var selectedIds = Array.from(checked).map(cb => cb.dataset.empId);
+    
+    var selectedIds = [];
+    var overrides = {};
+
+    Array.from(checked).forEach(cb => {
+        var empId = cb.dataset.empId;
+        selectedIds.push(empId);
+        
+        var hrInput = document.querySelector(`.manual-hours-input[data-emp-id="${empId}"]`);
+        var payCell = document.getElementById(`pay-cell-${empId}`);
+        if (hrInput && payCell) {
+            overrides[empId] = {
+                totalHours: hrInput.value,
+                totalPay: payCell.dataset.basePay
+            };
+        }
+    });
+
     var modalSel = document.getElementById('payroll-modal-month-select');
     var currentMonth = modalSel ? modalSel.value : (() => { var n = new Date(); return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0'); })();
     confirmModal(selectedIds.length + '명의 ' + currentMonth + ' 급여를 정산하시겠습니까?', async function() {
         try {
-            var res = await callGAS({ action: 'processPayroll', employeeIds: selectedIds });
+            var res = await callGAS({ action: 'processPayroll', employeeIds: selectedIds, overrides: overrides });
             if (res && res.success) {
                 successModal(res.message || '정산이 완료되었습니다.');
                 renderPayrollTable();
@@ -538,7 +609,6 @@ function printPayrollSlip(empId) {
     
     let totalHours = 0;
     let grossTotal = 0;
-    
     if (emp.type === 'monthly') {
         grossTotal = Number(emp.rate);
         monthlyAtt.forEach(att => {
@@ -552,30 +622,121 @@ function printPayrollSlip(empId) {
         });
     }
 
-    let taxRate = 0.033; 
+    // 수기 수정값이 존재하면 이를 우선 반영
+    var hrInput = document.querySelector(`.manual-hours-input[data-emp-id="${empId}"]`);
+    var payCell = document.getElementById(`pay-cell-${empId}`);
+    if (hrInput && payCell) {
+        totalHours = parseFloat(hrInput.value) || totalHours;
+        grossTotal = Number(payCell.dataset.basePay) || grossTotal;
+    }
+
+    let taxRate = 0.033;
     let taxName = "사업소득세(3.3%)";
     if (emp.type === 'monthly') {
-        taxRate = 0.094; 
+        taxRate = 0.094;
         taxName = "4대보험(9.4%)";
     }
-    
     const taxAmount = Math.floor(grossTotal * taxRate);
-    const netPay = grossTotal - taxAmount;
 
     document.getElementById('s-name').innerText = emp.name;
     document.getElementById('s-month').innerText = currentMonth;
     document.getElementById('s-days').innerText = `${monthlyAtt.length} 일`;
     document.getElementById('s-hours').innerText = `${totalHours.toFixed(1)} 시간`;
-    document.getElementById('s-base-pay').innerText = `₩ ${grossTotal.toLocaleString()}`;
-    document.getElementById('s-gross-pay').innerText = `₩ ${grossTotal.toLocaleString()}`;
-    document.getElementById('s-tax-name').innerText = taxName;
-    document.getElementById('s-tax-amount').innerText = `₩ ${taxAmount.toLocaleString()}`;
-    document.getElementById('s-tax-total').innerText = `₩ ${taxAmount.toLocaleString()}`;
-    document.getElementById('s-total-pay').innerText = `₩ ${netPay.toLocaleString()}`;
     document.getElementById('s-date').innerText = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
     document.getElementById('slip-timestamp').innerText = `출력일시: ${new Date().toLocaleString()}`;
+    document.getElementById('s-tax-name').innerText = taxName;
+
+    // 지급 tbody 초기화 (기본급 행 input 세팅)
+    document.getElementById('slip-pay-tbody').innerHTML = `
+        <tr>
+            <th style="background: #f8fafc; font-size: 9pt; width: 50%;">기본급/수당</th>
+            <td style="text-align: right; font-size: 9pt;">
+                <input type="number" id="s-base-pay-input" step="1" min="0"
+                    value="${grossTotal}"
+                    style="width: 100%; text-align: right; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt;"
+                    oninput="recalcSlipTotals()">
+            </td>
+        </tr>`;
+
+    // 공제 tbody 초기화 (세금 행 input 세팅)
+    document.getElementById('slip-deduct-tbody').innerHTML = `
+        <tr>
+            <th style="background: #f8fafc; font-size: 9pt; width: 50%;" id="s-tax-name">${taxName}</th>
+            <td style="text-align: right; font-size: 9pt;">
+                <input type="number" id="s-tax-amount-input" step="1" min="0"
+                    value="${taxAmount}"
+                    style="width: 100%; text-align: right; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt; color: #f43f5e;"
+                    oninput="recalcSlipTotals()">
+            </td>
+        </tr>`;
+
+    // 합계 초기 계산
+    recalcSlipTotals();
 
     document.getElementById('payroll-slip-modal').style.display = 'flex';
+}
+
+// 지급/공제 합계 및 실수령액 재계산
+function recalcSlipTotals() {
+    // 지급 합계: slip-pay-tbody 내 모든 number input 합산
+    var payInputs = document.querySelectorAll('#slip-pay-tbody input[type="number"]');
+    var grossTotal = 0;
+    payInputs.forEach(function(inp) { grossTotal += Number(inp.value) || 0; });
+
+    // 공제 합계: slip-deduct-tbody 내 모든 number input 합산
+    var deductInputs = document.querySelectorAll('#slip-deduct-tbody input[type="number"]');
+    var deductTotal = 0;
+    deductInputs.forEach(function(inp) { deductTotal += Number(inp.value) || 0; });
+
+    var netPay = grossTotal - deductTotal;
+
+    var grossEl = document.getElementById('s-gross-pay');
+    var taxTotalEl = document.getElementById('s-tax-total');
+    var totalPayEl = document.getElementById('s-total-pay');
+    if (grossEl) grossEl.innerText = '₩ ' + grossTotal.toLocaleString();
+    if (taxTotalEl) taxTotalEl.innerText = '₩ ' + deductTotal.toLocaleString();
+    if (totalPayEl) totalPayEl.innerText = '₩ ' + netPay.toLocaleString();
+}
+
+// 지급 항목 행 추가
+function addSlipPayRow() {
+    var tbody = document.getElementById('slip-pay-tbody');
+    if (!tbody) return;
+    var idx = tbody.querySelectorAll('tr').length;
+    var tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td style="font-size: 9pt; padding: 6px;">
+            <input type="text" placeholder="항목명" style="width: 90%; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt;">
+        </td>
+        <td style="text-align: right; font-size: 9pt;">
+            <input type="number" step="1" min="0" placeholder="0"
+                style="width: 80%; text-align: right; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt;"
+                oninput="recalcSlipTotals()">
+            <button type="button" onclick="this.closest('tr').remove(); recalcSlipTotals();"
+                class="no-print"
+                style="margin-left: 4px; padding: 2px 6px; font-size: 8pt; border: none; border-radius: 3px; background: #fee2e2; color: #f43f5e; cursor: pointer;">✕</button>
+        </td>`;
+    tbody.appendChild(tr);
+}
+
+// 공제 항목 행 추가
+function addSlipDeductRow() {
+    var tbody = document.getElementById('slip-deduct-tbody');
+    if (!tbody) return;
+    var tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td style="font-size: 9pt; padding: 6px;">
+            <input type="text" placeholder="항목명" style="width: 90%; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt;">
+        </td>
+        <td style="text-align: right; font-size: 9pt;">
+            <input type="number" step="1" min="0" placeholder="0"
+                style="width: 80%; text-align: right; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt; color: #f43f5e;"
+                oninput="recalcSlipTotals()">
+            <button type="button" onclick="this.closest('tr').remove(); recalcSlipTotals();"
+                class="no-print"
+                style="margin-left: 4px; padding: 2px 6px; font-size: 8pt; border: none; border-radius: 3px; background: #fee2e2; color: #f43f5e; cursor: pointer;">✕</button>
+        </td>`;
+    tbody.appendChild(tr);
 }
 
 function closePayrollSlipModal() {
@@ -678,6 +839,14 @@ function editEmployee(id) {
     document.getElementById('emp-join-date').value = emp.joinDate || '';
     document.getElementById('emp-start-time').value = emp.startTime || '09:00';
     document.getElementById('emp-end-time').value = emp.endTime || '18:00';
+    var statusEl = document.getElementById('emp-status');
+    if (statusEl) {
+        statusEl.value = emp.status || '입사';
+        var leaveGroup = document.getElementById('emp-leave-date-group');
+        if (leaveGroup) leaveGroup.style.display = statusEl.value === '퇴사' ? 'block' : 'none';
+    }
+    var leaveDateEl = document.getElementById('emp-leave-date');
+    if (leaveDateEl) leaveDateEl.value = emp.leaveDate || '';
 
     const submitBtn = document.querySelector('#employee-form button[type="submit"]');
     submitBtn.innerText = '정보 수정 저장';
@@ -779,9 +948,28 @@ function printTwoCopies(containerId, docType) {
         + String(now.getMonth() + 1).padStart(2, '0')
         + String(now.getDate()).padStart(2, '0');
 
-    // 이미지 src를 절대경로로 교체 (인덱스 1:1 매핑 — origImgs[i].src는 브라우저가 절대경로로 보유)
+    // 인쇄용 복사본 생성 — input 현재값을 span 텍스트로 변환하여 인쇄창에서도 표시
     var tempDiv = document.createElement('div');
     tempDiv.innerHTML = area.innerHTML;
+
+    // .no-print 요소(+ 항목추가 버튼, × 삭제 버튼) 제거
+    tempDiv.querySelectorAll('.no-print').forEach(function(el) { el.remove(); });
+
+    // 모든 input[type=number] → 값이 담긴 span으로 교체
+    tempDiv.querySelectorAll('input[type="number"]').forEach(function(inp) {
+        var span = document.createElement('span');
+        span.innerText = Number(inp.value || 0).toLocaleString();
+        inp.parentNode.replaceChild(span, inp);
+    });
+
+    // 모든 input[type=text] → 값이 담긴 span으로 교체 (추가 항목명 등)
+    tempDiv.querySelectorAll('input[type="text"]').forEach(function(inp) {
+        var span = document.createElement('span');
+        span.innerText = inp.value || '';
+        inp.parentNode.replaceChild(span, inp);
+    });
+
+    // 이미지 src를 절대경로로 교체 (인덱스 1:1 매핑)
     var origImgs = area.getElementsByTagName('img');
     var copyImgs = tempDiv.getElementsByTagName('img');
     for (var i = 0; i < origImgs.length; i++) {
@@ -923,6 +1111,11 @@ function applyAttendanceRangeFilter() {
     // 단일 날짜 필터 초기화 (중복 필터 방지)
     const singleEl = document.getElementById('attendance-date-filter');
     if (singleEl) singleEl.value = '';
+    updateUI();
+}
+
+// 성명 필터링 (att-name-filter input 기준)
+function applyAttNameFilter() {
     updateUI();
 }
 

@@ -12,6 +12,7 @@
         @media print {
             @page { margin: 0; size: A4; }
             body { margin: 0; }
+            .no-print { display: none !important; }
         }
         #direct-print-area { display: none; }
 
@@ -111,7 +112,7 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div class="form-group">
                                 <label>생년월일</label>
-                                <input type="text" id="emp-birthday" placeholder="YYMMDD" maxlength="6" required>
+                                <input type="text" id="emp-birthday" placeholder="YYMMDD" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required>
                             </div>
                             <div class="form-group">
                                 <label>연락처</label>
@@ -160,12 +161,24 @@
                             <label>작성일자 (등록일)</label>
                             <input type="date" id="emp-join-date" required>
                         </div>
+                        <div class="form-group" id="emp-leave-date-group" style="display: none;">
+                            <label style="color: #f43f5e; font-weight: 600;">퇴사일자</label>
+                            <input type="date" id="emp-leave-date">
+                        </div>
                         <div class="form-group">
                             <label>소정근로시간</label>
                             <div style="display: flex; gap: 5px; align-items: center;">
                                 <input type="time" id="emp-start-time" value="09:00"> <span>~</span>
                                 <input type="time" id="emp-end-time" value="18:00">
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label>상태</label>
+                            <select id="emp-status" onchange="document.getElementById('emp-leave-date-group').style.display = this.value === '퇴사' ? 'block' : 'none';">
+                                <option value="입사">입사</option>
+                                <option value="휴직">휴직</option>
+                                <option value="퇴사">퇴사</option>
+                            </select>
                         </div>
                         <button type="submit" class="btn btn-primary" style="margin-top: 10px;">저장 및 등록</button>
                     </form>
@@ -205,6 +218,13 @@
                         <button class="btn btn-primary" onclick="applyAttendanceRangeFilter()" style="width: auto; padding: 0.5rem 1rem; background: #6366f1;">🔍 조건 검색</button>
                         <button class="btn btn-primary" onclick="showMonthView()" style="width: auto; padding: 0.5rem 1rem;">📅 이번달 전체</button>
                         <button class="btn" onclick="clearAttendanceFilter()" style="width: auto; padding: 0.5rem 1rem; background: #64748b; color: white;">✕ 초기화</button>
+                    </div>
+                    <!-- 성명 검색 필터 행 -->
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 0.75rem; padding: 0.75rem 1rem;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); white-space: nowrap;">👤 성명 검색</span>
+                        <input type="text" id="att-name-filter" placeholder="성명 입력" style="width: 140px; padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--glass-border); background: #ffffff; color: #111;" oninput="applyAttNameFilter()">
+                        <button class="btn btn-primary" onclick="applyAttNameFilter()" style="width: auto; padding: 0.5rem 1rem; background: #8b5cf6;">🔍 성명 검색</button>
+                        <button class="btn" onclick="document.getElementById('att-name-filter').value=''; applyAttNameFilter();" style="width: auto; padding: 0.5rem 1rem; background: #64748b; color: white;">✕ 초기화</button>
                     </div>
                 </div>
                 <table>
@@ -399,31 +419,53 @@
 
                 <h3 style="margin-top: 30px; border-bottom: 2px solid #333; padding-bottom: 5px;">지급 및 공제 상세 내역</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <!-- 지급 내역 -->
                     <div>
                         <h4 style="font-size: 10pt; margin-bottom: 5px;">[지급 내역]</h4>
-                        <table class="c-table" style="border-color: #e2e8f0;">
-                            <tr>
-                                <th style="background: #f8fafc; font-size: 9pt;">기본급/수당</th>
-                                <td id="s-base-pay" style="text-align: right; font-weight: 700; font-size: 9pt;"></td>
-                            </tr>
-                            <tr>
-                                <th style="background: #f8fafc; font-size: 9pt;">지급 합계</th>
-                                <td id="s-gross-pay" style="text-align: right; font-weight: 800; color: #1e293b; font-size: 9pt;"></td>
-                            </tr>
+                        <table class="c-table" style="border-color: #e2e8f0;" id="slip-pay-table">
+                            <tbody id="slip-pay-tbody">
+                                <tr>
+                                    <th style="background: #f8fafc; font-size: 9pt; width: 50%;">기본급/수당</th>
+                                    <td style="text-align: right; font-size: 9pt;">
+                                        <input type="number" id="s-base-pay-input" step="1" min="0"
+                                            style="width: 100%; text-align: right; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt;"
+                                            oninput="recalcSlipTotals()">
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th style="background: #f8fafc; font-size: 9pt;">지급 합계</th>
+                                    <td id="s-gross-pay" style="text-align: right; font-weight: 800; color: #1e293b; font-size: 9pt;"></td>
+                                </tr>
+                            </tfoot>
                         </table>
+                        <button type="button" onclick="addSlipPayRow()" class="no-print"
+                            style="margin-top: 6px; padding: 3px 10px; font-size: 8pt; border: 1px dashed #94a3b8; border-radius: 4px; background: #f8fafc; color: #475569; cursor: pointer;">+ 지급 항목 추가</button>
                     </div>
+                    <!-- 공제 내역 -->
                     <div>
                         <h4 style="font-size: 10pt; margin-bottom: 5px;">[공제 내역]</h4>
-                        <table class="c-table" style="border-color: #e2e8f0;">
-                            <tr>
-                                <th id="s-tax-name" style="background: #f8fafc; font-size: 9pt;">세금/보험</th>
-                                <td id="s-tax-amount" style="text-align: right; font-weight: 700; color: #f43f5e; font-size: 9pt;"></td>
-                            </tr>
-                            <tr>
-                                <th style="background: #f8fafc; font-size: 9pt;">공제 합계</th>
-                                <td id="s-tax-total" style="text-align: right; font-weight: 800; color: #f43f5e; font-size: 9pt;"></td>
-                            </tr>
+                        <table class="c-table" style="border-color: #e2e8f0;" id="slip-deduct-table">
+                            <tbody id="slip-deduct-tbody">
+                                <tr>
+                                    <th style="background: #f8fafc; font-size: 9pt; width: 50%;" id="s-tax-name">세금/보험</th>
+                                    <td style="text-align: right; font-size: 9pt;">
+                                        <input type="number" id="s-tax-amount-input" step="1" min="0"
+                                            style="width: 100%; text-align: right; border: 1px solid #cbd5e1; border-radius: 4px; padding: 3px 5px; font-size: 9pt; color: #f43f5e;"
+                                            oninput="recalcSlipTotals()">
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th style="background: #f8fafc; font-size: 9pt;">공제 합계</th>
+                                    <td id="s-tax-total" style="text-align: right; font-weight: 800; color: #f43f5e; font-size: 9pt;"></td>
+                                </tr>
+                            </tfoot>
                         </table>
+                        <button type="button" onclick="addSlipDeductRow()" class="no-print"
+                            style="margin-top: 6px; padding: 3px 10px; font-size: 8pt; border: 1px dashed #94a3b8; border-radius: 4px; background: #f8fafc; color: #475569; cursor: pointer;">+ 공제 항목 추가</button>
                     </div>
                 </div>
 

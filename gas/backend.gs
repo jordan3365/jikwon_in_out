@@ -11,7 +11,7 @@ const SHEETS = {
 
 // 시트별 최종 항목명(헤더) 정의
 const HEADERS = {
-  EMPLOYEES: ['ID', '성명', '생년월일', '연락처', '입사일자', '급여구분', '급여금액', '은행명', '계좌번호', '예금주', '담당업무', '근무시간', '세금유형'],
+  EMPLOYEES: ['ID', '성명', '생년월일', '연락처', '입사일자', '급여구분', '급여금액', '은행명', '계좌번호', '예금주', '담당업무', '근무시간', '세금유형', '상태', '퇴사일자'],
   ATTENDANCE: ['ID', '직원ID', '직원명', '날짜', '요일', '출근시간', '퇴근시간', '위도', '경도', '비고'],
   PAYROLL: ['ID', '직원명', '정산월', '총근무시간', '지급합계', '발송상태', '발송일시']
 };
@@ -75,12 +75,14 @@ function updateEmployee(data) {
         existingJoinDate = existingJoinDate ? existingJoinDate.toString() : '';
       }
       const joinDate = data.joinDate || existingJoinDate;
-      // ID, 성명, 생년월일, 연락처, 입사일자, 급여구분, 급여금액, 은행명, 계좌번호, 예금주, 담당업무, 근무시간, 세금유형
-      const range = sheet.getRange(i + 1, 2, 1, 11);
+      const status = data.status || '입사';
+      const leaveDate = data.leaveDate || '';
+      // ID, 성명, 생년월일, 연락처, 입사일자, 급여구분, 급여금액, 은행명, 계좌번호, 예금주, 담당업무, 근무시간, 세금유형, 상태, 퇴사일자
+      const range = sheet.getRange(i + 1, 2, 1, 14);
       range.setValues([[
-        data.name, data.birthday, data.phone, joinDate,
-        data.type, data.rate, data.bankName, data.bankAccount, data.name,
-        data.workPart, `${data.startTime}~${data.endTime}`
+        data.name, `'${data.birthday}`, `'${data.phone}`, joinDate,
+        data.type, data.rate, data.bankName, `'${data.bankAccount}`, data.name,
+        data.workPart, `${data.startTime}~${data.endTime}`, '3.3%', status, leaveDate
       ]]);
       return { success: true };
     }
@@ -134,10 +136,12 @@ function addEmployee(data) {
   const id = "EMP_" + new Date().getTime();
   // 작성일자(입사일자)가 있으면 사용하고 없으면 현재 날짜 사용
   const joinDate = data.joinDate || Utilities.formatDate(new Date(), "GMT+9", "yyyy-MM-dd");
+  const status = data.status || '입사';
+  const leaveDate = data.leaveDate || '';
   sheet.appendRow([
-    id, data.name, data.birthday, data.phone, joinDate, 
-    data.type, data.rate, data.bankName, data.bankAccount, data.name, 
-    data.workPart, `${data.startTime}~${data.endTime}`, '3.3%'
+    id, data.name, `'${data.birthday}`, `'${data.phone}`, joinDate, 
+    data.type, data.rate, data.bankName, `'${data.bankAccount}`, data.name, 
+    data.workPart, `${data.startTime}~${data.endTime}`, '3.3%', status, leaveDate
   ]);
   return { success: true };
 }
@@ -229,9 +233,19 @@ function processPayroll(data) {
     }
     
     if (rowIdx > -1) {
+      // 수기 입력(overrides) 반영 로직
+      if (data.overrides && data.overrides[emp.id]) {
+        totalHours = parseFloat(data.overrides[emp.id].totalHours) || totalHours;
+        grossTotal = Number(data.overrides[emp.id].totalPay) || grossTotal;
+      }
       paySheet.getRange(rowIdx, 4, 1, 2).setValues([[totalHours.toFixed(1), grossTotal]]);
       updatedRows++;
     } else {
+      // 수기 입력(overrides) 반영 로직
+      if (data.overrides && data.overrides[emp.id]) {
+        totalHours = parseFloat(data.overrides[emp.id].totalHours) || totalHours;
+        grossTotal = Number(data.overrides[emp.id].totalPay) || grossTotal;
+      }
       paySheet.appendRow([emp.id, emp.name, currentMonth, totalHours.toFixed(1), grossTotal, '미발송', '']);
       newRows++;
     }
@@ -473,7 +487,7 @@ function getSheetData(sheetName) {
   const keyMap = {
     'ID': 'id', '성명': 'name', '연락처': 'phone', '급여구분': 'type', '급여금액': 'rate', 
     '생년월일': 'birthday', '은행명': 'bankName', '계좌번호': 'bankAccount', 
-    '담당업무': 'workPart', '입사일자': 'joinDate', '근무시간': 'workTime', '세금유형': 'taxType',
+    '담당업무': 'workPart', '입사일자': 'joinDate', '근무시간': 'workTime', '세금유형': 'taxType', '상태': 'status', '퇴사일자': 'leaveDate',
     '직원ID': 'employeeId', '직원명': 'employeeName', '날짜': 'date', '요일': 'day', 
     '출근시간': 'clockIn', '퇴근시간': 'clockOut',
     '위도': 'lat', '경도': 'lon', '비고': 'note',
@@ -504,7 +518,11 @@ function getSheetData(sheetName) {
         // 수치 필드가 아닌데 0이면 빈 문자열로
         obj[key] = "";
       } else {
-        obj[key] = val.toString();
+        let strVal = val.toString();
+        if (strVal.startsWith("'")) {
+          strVal = strVal.substring(1);
+        }
+        obj[key] = strVal;
       }
     });
     

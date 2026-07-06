@@ -1,5 +1,5 @@
 // Configuration
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwDg6__Bb2QmZoli9NKWpXG6qx_QUnQu1XnO3YbVcSJeJjbv6puiTvPGPx4z___pNytzA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwiTu9zNqDUt6khadLDDAQm9IWvNc5YMV3nYaXZDzYS9E8O0yIQY8jt8BAGqU6xndjDyQ/exec';
 
 // State
 let employees = [];
